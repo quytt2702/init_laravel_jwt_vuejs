@@ -5,12 +5,21 @@ namespace App\Exceptions;
 use Exception;
 use Illuminate\Http\Response;
 
+/**
+ * Class CustomException
+ *
+ * @package App\Exceptions
+ */
 class CustomException extends Exception
 {
-    protected $errors;
+    /**
+     * @var array|mixed $errors Error
+     */
+    private $errors;
 
     /**
      * CustomException constructor.
+     *
      * @param string $message
      * @param array $errors
      * @param $code
@@ -24,6 +33,8 @@ class CustomException extends Exception
     }
 
     /**
+     * Get errors
+     *
      * @return mixed
      */
     public function getErrors()
@@ -32,6 +43,8 @@ class CustomException extends Exception
     }
 
     /**
+     * Set errors
+     *
      * @param $errors
      *
      * @return $this

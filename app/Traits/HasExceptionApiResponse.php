@@ -30,11 +30,11 @@ trait HasExceptionApiResponse
      * Response Exception
      *
      * @param Request   $request   Request
-     * @param Throwable $exception Throwable\Exception
+     * @param Throwable $exception Throwable
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    protected function responseException($request, Throwable $exception)
+    protected final function responseException($request, Throwable $exception)
     {
         switch (true) {
             case $exception instanceof UnauthorizedException:

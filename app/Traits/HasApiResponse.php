@@ -2,11 +2,6 @@
 
 namespace App\Traits;
 
-use App\Exceptions\CustomException;
-use App\Utils\LogsHelper;
-use App\Utils\TransactionHelper;
-use Carbon\Carbon;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Response;
 
 /**
@@ -17,19 +12,102 @@ use Illuminate\Http\Response;
 trait HasApiResponse
 {
     /**
-     * Response
+     * Meta response fields
      *
-     * @param bool   $success      Success?
-     * @param array  $data         Data
-     * @param string|null $message      Message
-     * @param mixed  $status Custom Http Status
-     * @param array  $errors
+     * @var array
+     */
+    private static $meta = [];
+
+    /**
+     * Add meta response with $key
+     *
+     * @param mixed $key     Key
+     * @param mixed $value   Value
+     * @param bool  $refresh Refresh key and add value
+     *
+     * @return void
+     */
+    protected final static function addMetaResponse($key, $value, $refresh = false)
+    {
+        if ($refresh) {
+            self::$meta[$key] = [];
+        }
+
+        self::$meta[$key] = $value;
+    }
+
+    /**
+     * Reset meta
+     */
+    protected final static function refreshMeta()
+    {
+        self::$meta = [];
+    }
+
+    /**
+     * Build response Success
+     *
+     * @param mixed  $data    Data
+     * @param string $message Message response
+     * @param mixed  $status  Code response
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    private function response($success, array $data = [], $message = null, $status = Response::HTTP_BAD_REQUEST, array $errors = [])
+    protected final function responseSuccess($data = [], $message = null, $status = Response::HTTP_OK)
     {
-        $status = !empty($status) ? $status : ($success ? Response::HTTP_OK : Response::HTTP_BAD_REQUEST);
+        $message = empty($message) ? __('messages.request.request_success') : $message;
+
+        return $this->buildResponse(true, $data, $message, $status);
+    }
+
+    /**
+     * Build response Error
+     *
+     * @param string $message Message
+     * @param mixed  $errors  Errors
+     * @param mixed  $status  Code response
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    protected final function responseError($message = null, $errors = [], $status = null)
+    {
+        $message = empty($message) ? __('exception.bad_request') : $message;
+
+        if ($message instanceof \Throwable) {
+            $exception = $message;
+            $message   = $exception->getMessage();
+
+            // Append detail error in json format
+            if (config('app.debug') && (config('app.env') != 'production')) {
+                $errors      = array_merge((array) $errors, [
+                    'exception' => [
+                        'file'  => $exception->getFile(),
+                        'line'  => $exception->getLine(),
+                        'trace' => explode(PHP_EOL, $exception->getTraceAsString())
+                    ],
+                ]);
+            }
+        }
+
+        return $this->buildResponse(false, [], $message, $status, $errors);
+    }
+
+    /**
+     * Build response
+     *
+     * @param bool        $success Request is success
+     * @param array       $data    Data
+     * @param string|null $message Message
+     * @param mixed       $status  Code response
+     * @param array       $errors  Error of response
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    private function buildResponse($success, $data = [], $message = null, $status = Response::HTTP_OK, $errors = [])
+    {
+        if (empty($status) && !$success) {
+            $status = Response::HTTP_BAD_REQUEST;
+        }
 
         return response()->json([
             'status'  => $status,
@@ -37,54 +115,7 @@ trait HasApiResponse
             'message' => $message,
             'data'    => $data,
             'errors'  => $errors,
+            'meta'    => self::$meta,
         ], $status);
-    }
-
-    /**
-     * Response Success
-     *
-     * @param mixed  $data         Data
-     * @param string $message      Message
-     * @param mixed  $status Custom Http Status
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function responseSuccess(array $data = [], $message = null, $status = Response::HTTP_OK)
-    {
-        $message = empty($message) ? __('messages.request.request_success') : $message;
-
-        return $this->response(true, $data, $message, $status);
-    }
-
-    /**
-     * Response Error
-     *
-     * @param string $message      Message
-     * @param mixed  $errors         Errors
-     * @param mixed  $status Custom Status
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function responseError($message = null, array $errors = [], $status = null)
-    {
-        $message = empty($message) ? __('exception.bad_request') : $message;
-
-        if ($message instanceof \Exception) {
-            $exception = $message;
-            $message   = $exception->getMessage();
-
-            // show detail error in json format
-            if (config('app.env') != 'production' && config('app.debug')) {
-                $errors      = array_merge((array) $errors, [
-                    'exception' => [
-                        'file' => $exception->getFile(),
-                        'line' => $exception->getLine(),
-                        'trace'   => explode(PHP_EOL, $exception->getTraceAsString())
-                    ],
-                ]);
-            }
-        }
-
-        return $this->response(false, [], $message, $status, $errors);
     }
 }
