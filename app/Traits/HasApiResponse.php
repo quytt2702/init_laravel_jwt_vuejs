@@ -27,7 +27,7 @@ trait HasApiResponse
      *
      * @return void
      */
-    protected final static function addMetaResponse($key, $value, $refresh = false)
+    protected static function addMetaResponse($key, $value, $refresh = false)
     {
         if ($refresh) {
             self::$meta[$key] = [];
@@ -39,7 +39,7 @@ trait HasApiResponse
     /**
      * Reset meta
      */
-    protected final static function refreshMeta()
+    protected static function refreshMeta()
     {
         self::$meta = [];
     }
@@ -53,7 +53,7 @@ trait HasApiResponse
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    protected final function responseSuccess($data = [], $message = null, $status = Response::HTTP_OK)
+    protected function responseSuccess($data = [], $message = null, $status = Response::HTTP_OK)
     {
         $message = empty($message) ? __('messages.request.request_success') : $message;
 
@@ -69,7 +69,7 @@ trait HasApiResponse
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    protected final function responseError($message = null, $errors = [], $status = null)
+    protected function responseError($message = null, $errors = [], $status = null)
     {
         $message = empty($message) ? __('exception.bad_request') : $message;
 

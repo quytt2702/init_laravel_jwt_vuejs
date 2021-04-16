@@ -20,7 +20,7 @@ class Controller extends BaseController
      *
      * @return void
      */
-    protected final function addPagination($pagination)
+    protected function addPagination($pagination)
     {
         if ($pagination instanceof LengthAwarePaginator) {
             $total = $pagination->total();

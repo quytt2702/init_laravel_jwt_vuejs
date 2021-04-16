@@ -3,8 +3,10 @@
 use App\Exceptions\CustomException;
 use Illuminate\Validation\ValidationException;
 
-if (! function_exists('throw_validate_exception')) {
+if (!function_exists('throw_custom_exception')) {
     /**
+     * throw error custom
+     *
      * @param $message
      * @param array $errors
      *
@@ -18,6 +20,8 @@ if (! function_exists('throw_validate_exception')) {
 
 if (!function_exists('throw_validation_exception')) {
     /**
+     * throw error validate
+     *
      * @param array $messages
      *
      * @throws ValidationException
@@ -30,6 +34,8 @@ if (!function_exists('throw_validation_exception')) {
 
 if (!function_exists('current_user')) {
     /**
+     * Get user authenticate
+     *
      * @return \Illuminate\Contracts\Auth\Authenticatable|\App\Models\User|null
      */
     function current_user()
