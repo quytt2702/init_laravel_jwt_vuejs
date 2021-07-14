@@ -15,6 +15,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
+use Symfony\Component\HttpKernel\Exception\UnauthorizedHttpException;
 use Throwable;
 
 /**
@@ -38,6 +39,7 @@ trait HasExceptionApiResponse
     {
         switch (true) {
             case $exception instanceof UnauthorizedException:
+            case $exception instanceof UnauthorizedHttpException:
             case $exception instanceof AuthenticationException:
                 return $this->responseError(__('exception.unauthorized'), [], Response::HTTP_UNAUTHORIZED);
 

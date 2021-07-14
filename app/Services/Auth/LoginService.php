@@ -2,12 +2,13 @@
 
 namespace App\Services\Auth;
 
-use App\Repositories\V1\UserRepository;
+use App\Repositories\Contracts\UserRepository;
 use Carbon\Carbon;
 use Illuminate\Http\Response;
 
 /**
  * Class LoginService
+ *
  * @package App\Services\Auth
  */
 class LoginService
@@ -20,36 +21,32 @@ class LoginService
     /**
      * LoginService constructor.
      *
-     * @param null $userRepository
+     * @param UserRepository $userRepository
      */
-    public function __construct($userRepository = null)
+    public function __construct(UserRepository $userRepository)
     {
-        $this->userRepository = $userRepository instanceof UserRepository
-            ? $userRepository
-            : (new UserRepository());
+        $this->userRepository = $userRepository;
     }
 
     /**
      * Handle login
      *
-     * @param $email
-     * @param $password
+     * @param      $email
+     * @param      $password
      * @param null $remember
      *
-     * @return array
+     * @return string
      */
     public function handle($email, $password, $remember = null)
     {
-        $token = $this->attemptLogin($email, $password, $remember);
-
-        return $this->responseWithToken($token);
+        return $this->attemptLogin($email, $password, $remember);
     }
 
     /**
      * Attempt to authenticate a user using the given credentials.
      *
-     * @param $email
-     * @param $password
+     * @param      $email
+     * @param      $password
      * @param null $remember
      *
      * @return bool
@@ -57,7 +54,7 @@ class LoginService
     protected function attemptLogin($email, $password, $remember = null)
     {
         $credentials = [
-            'email' => $email,
+            'email'    => $email,
             'password' => $password,
         ];
 
@@ -68,29 +65,9 @@ class LoginService
         }
 
         if (!$token) {
-            abort(Response::HTTP_UNAUTHORIZED,__('auth.failed'));
+            abort(Response::HTTP_UNAUTHORIZED, __('auth.failed'));
         }
 
         return $token;
-    }
-
-    /**
-     * Build response from token
-     *
-     * @param $token
-     *
-     * @return array
-     */
-    public function responseWithToken($token)
-    {
-        $payload = auth()->payload();
-        $tokenExpire = $payload->get('exp');
-
-        return [
-            'access_token'               => $token,
-            'token_type'                 => 'bearer',
-            'token_expired_at'           => Carbon::parse($tokenExpire)->toDateTimeString(),
-            'token_expired_at_timestamp' => $tokenExpire * 1000,
-        ];
     }
 }

@@ -9,13 +9,17 @@ use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Resources\User\UserResource;
 use App\Services\Auth\ChangePasswordService;
 use App\Services\Auth\LoginService;
+use App\Services\Auth\RefreshTokenService;
+use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
+use Tymon\JWTAuth\Token;
 
 class AuthController extends Controller
 {
     /**
      * Get authenticated user.
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function me()
     {
@@ -31,17 +35,17 @@ class AuthController extends Controller
      * @param LoginRequest $request
      * @param LoginService $service
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function login(LoginRequest $request, LoginService $service)
     {
         $email      = $request->input('email');
         $password   = $request->input('password');
         $isRemember = $request->input('remember', false);
-        $data       = $service->handle($email, $password, $isRemember);
+        $service->handle($email, $password, $isRemember);
 
         return $this->responseSuccess(
-            $data,
+            $this->getToken(),
             __('auth.login_success')
         );
     }
@@ -49,7 +53,7 @@ class AuthController extends Controller
     /**
      * API logout
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function logout()
     {
@@ -62,12 +66,27 @@ class AuthController extends Controller
     }
 
     /**
+     * Api refresh token
+     *
+     * @return JsonResponse
+     */
+    public function refresh(RefreshTokenService $service)
+    {
+        $service->handle();
+
+        return $this->responseSuccess(
+            $this->getToken(),
+            __('auth.request_success')
+        );
+    }
+
+    /**
      * API change password
      *
      * @param ChangePasswordRequest $request
      * @param ChangePasswordService $service
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      *
      * @throws CustomException
      */
@@ -80,5 +99,26 @@ class AuthController extends Controller
             null,
             __('auth.change_password_success')
         );
+    }
+
+    /**
+     * Get token
+     *
+     * @return Token
+     */
+    private function getToken()
+    {
+        $token       = auth()->getToken();
+        $payload     = auth()->payload();
+        $tokenExpire = $payload->get('exp');
+
+        $token->id                   = auth()->id();
+        $token->access_token         = $token->get();
+        $token->token_type           = 'Bearer';
+        $token->expires_in           = auth()->factory()->getTTL() * 60;
+        $token->expired_at           = Carbon::parse($tokenExpire)->toDateTimeString();
+        $token->expired_at_timestamp = $tokenExpire * 1000;
+
+        return $token;
     }
 }
