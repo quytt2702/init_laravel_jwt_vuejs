@@ -3,6 +3,7 @@
 namespace App\Clients;
 
 use App\Traits\WithUser;
+use App\Clients\Contracts\ParserInterface;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\BadResponseException;
 use GuzzleHttp\HandlerStack;
@@ -10,13 +11,6 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
 use Psr\Http\Message\ResponseInterface;
 
-/**
- * Support for json API
- *
- * Class AbstractClient
- *
- * @package App\Clients
- */
 abstract class AbstractClient
 {
     use WithUser;
@@ -24,12 +18,7 @@ abstract class AbstractClient
     /**
      * @var Client
      */
-    private $client;
-
-    /**
-     * @var static
-     */
-    static $instance;
+    protected $client;
 
     /**
      * Response instance
@@ -39,33 +28,16 @@ abstract class AbstractClient
     protected $response;
 
     /**
+     * @var \Exception
+     */
+    protected $exception;
+
+    /**
      * CallAPIBusinessService constructor.
      */
     public function __construct()
     {
         $this->initialize();
-    }
-
-    /**
-     * Get static instance
-     *
-     * @return static
-     */
-    public static function getInstance()
-    {
-        if (is_null(static::$instance)) {
-            static::$instance = new static();
-        }
-
-        return static::$instance;
-    }
-
-    /**
-     * Refresh static instance exist
-     */
-    public static function refreshInstance()
-    {
-        self::$instance = null;
     }
 
     /**
@@ -99,12 +71,7 @@ abstract class AbstractClient
      */
     protected function defaultOptions()
     {
-        return [
-            'headers' => [
-                'Accept'        => 'application/json',
-                'content-type'  => 'application/json',
-            ]
-        ];
+        return [];
     }
 
     /**
@@ -120,57 +87,59 @@ abstract class AbstractClient
     /**
      * @param string $method
      * @param string $endpoint
-     * @param array $optionsAttach
+     * @param array  $optionsAttach
      *
      * @return array
+     * @throws \GuzzleHttp\Exception\GuzzleException
      */
     protected function request($method = 'get', $endpoint = '', $optionsAttach = [])
     {
-        $code = null;
+        $this->resetResponse();
+        $this->resetException();
 
         try {
             $this->response = $this->client->request($method, $this->beautifyEndpoint($endpoint), $optionsAttach);
-            $jsonResponse   = json_decode($this->response->getBody()->getContents(), true) ?? [];
             $code           = $this->response->getStatusCode();
         } catch (BadResponseException $e) {
-            $this->response = $e->getResponse();
-            $jsonResponse   = json_decode($this->response->getBody()->getContents(), true) ?? [];
-            $code           = $this->response->getStatusCode();
+            $this->exception = $e;
+            $this->response  = $e->getResponse();
+            $code            = $this->response->getStatusCode();
         } catch (\Exception $e) {
-            $code         = Response::HTTP_INTERNAL_SERVER_ERROR;
-            $jsonResponse = [];
+            $this->exception = $e;
+            $code            = Response::HTTP_INTERNAL_SERVER_ERROR;
         }
 
-        return $this->parse($code, $jsonResponse);
+        return $this->createResult($this->parser()->parse($this->response), $code);
     }
 
     /**
-     * Parse json data
+     * Parse html data
      *
-     * @param int $code
-     * @param array|null $jsonResponse
+     * @param mixed $data
+     * @param int   $code
      *
      * @return array
      */
-    protected function parse($code, array $jsonResponse)
+    protected function createResult($data, $code)
     {
-        $success = ($code < 400);
+        $code      = (int) $code;
+        $isSuccess = ($code < Response::HTTP_BAD_REQUEST);
 
-        return [$this->beatifyJsonResponse($jsonResponse, $code, $success), $code, $success];
+        $this->handleError($data, $code, $isSuccess);
+
+        return [$data, $code, $isSuccess];
     }
 
     /**
-     * Beatify json response
+     * Handle error from response
      *
-     * @param array $jsonResponse
-     * @param int   $code
-     * @param bool  $success
-     *
-     * @return mixed
+     * @param $data
+     * @param $code
+     * @param $isSuccess
      */
-    protected function beatifyJsonResponse($jsonResponse, $code, $success)
+    protected function handleError($data, $code, $isSuccess)
     {
-        return $jsonResponse;
+        //
     }
 
     /**
@@ -184,11 +153,46 @@ abstract class AbstractClient
     }
 
     /**
-     * Getter for `base_uri`
-     *
-     * @return string
+     * @return $this
      */
-    abstract protected function getBaseUri();
+    public function resetResponse()
+    {
+        $this->response = null;
+
+        return $this;
+    }
+
+    /**
+     * Getter response
+     *
+     * @return \Exception|null
+     */
+    public function getException()
+    {
+        return $this->exception;
+    }
+
+    /**
+     * @return $this
+     */
+    public function resetException()
+    {
+        $this->exception = null;
+
+        return $this;
+    }
+
+    /**
+     * Get data from response
+     *
+     * @param array|null $jsonResponse
+     *
+     * @return mixed
+     */
+    protected function getDataResponse($jsonResponse)
+    {
+        return Arr::get($jsonResponse, 'data', []);
+    }
 
     /**
      * @param $endpoint
@@ -199,4 +203,18 @@ abstract class AbstractClient
     {
         return ltrim($endpoint, '/');
     }
+
+    /**
+     * Parse data, return parseHtml/parseJson/Custom
+     *
+     * @return ParserInterface
+     */
+    abstract protected function parser();
+
+    /**
+     * Getter for `base_uri`
+     *
+     * @return string
+     */
+    abstract protected function getBaseUri();
 }
