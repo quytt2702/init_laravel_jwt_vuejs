@@ -13,3 +13,8 @@ npm-debug.log
 yarn-error.log
 .idea
 yarn.lock
+
+docker/logs/
+docker/mysql_data/
+docker/mysql/logs
+docker/redis/data
