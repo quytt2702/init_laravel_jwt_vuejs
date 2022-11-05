@@ -1,0 +1,97 @@
+version: "3.7"
+services:
+  app:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    working_dir: /var/www/
+    volumes:
+      - ./:/var/www
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - app-network
+    links:
+      - db
+      - dbtest
+#      - redis
+    environment:
+      SERVICE_NAME: app
+    depends_on:
+      - db
+#      - redis
+  db:
+    platform: linux/x86_64
+    image: mysql:8.0
+    restart: unless-stopped
+    ports:
+      - "3310:3306"
+    environment:
+      MYSQL_DATABASE: "laravel_db"
+      MYSQL_ROOT_PASSWORD: "user123"
+      MYSQL_PASSWORD: "user123"
+      MYSQL_USER: "dbuser"
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    volumes:
+      - ./docker/mysql/my.cnf:/etc/mysql/my.cnf
+      - ./docker/mysql/docker-entrypoint-initdb.d/:/docker-entrypoint-initdb.d/
+      - ./docker/mysql_data:/var/lib/mysql
+      - ./docker/mysql/logs:/var/log/mysql
+    networks:
+      - app-network
+
+  dbtest:
+    platform: linux/x86_64
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: dbtest
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_PASSWORD: user123
+      MYSQL_USER: app_test
+    networks:
+      - app-network
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - 8888:80
+    volumes:
+      - ./:/var/www
+      - ./docker/nginx/conf.d/:/etc/nginx/conf.d/
+      - ./docker/logs:/var/log/nginx/
+    networks:
+      - app-network
+
+#  redis:
+#    image: redis:alpine
+#    container_name: app_redis
+#    command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD}"
+#    volumes:
+#      - ./docker/redis/data:/data
+#    ports:
+#      - "6379"
+#    networks:
+#      - app-network
+#
+#  minio-s3:
+#    image: minio/minio
+#    container_name: app_minio_s3
+#    ports:
+#      - "9003:9003"
+#      - "9004:9004"
+#    volumes:
+#      - ./storage/minio:/data
+#    environment:
+#      MINIO_ACCESS_KEY: minio_access_key
+#      MINIO_SECRET_KEY: minio_secret_key
+#      HOST_NAME: s3.localhost
+#    command: server --console-address :9004 --address 0.0.0.0:9003 /data
+#    networks:
+#      - app-network
+
+networks:
+  app-network:
+    driver: bridge
